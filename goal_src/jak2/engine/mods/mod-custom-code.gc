@@ -18,95 +18,509 @@
 
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; Begin function defintions.
+    ;; ECO FUSION MOD - Variables and State
     ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+    ;; Eco fusion system variables
+    (define *eco-fusion-enabled* #t)
+    (define *yellow-eco-charge* 0)
+    (define *red-eco-charge* 0)
+    (define *blue-eco-charge* 0)
+    (define *green-eco-charge* 0)
+    (define *fusion-cooldown* 0)
+    (define *fusion-effect-duration* 0)
+    (define *fusion-message-display-time* 0)
+
+    ;; Fusion effect flags
+    (define *super-jump-active* #f)
+    (define *fire-trail-active* #f)
+    (define *time-slow-active* #f)
+    (define *mega-heal-active* #f)
+    (define *triple-fusion-active* #f)
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; ALIEN MOD - Variables and State
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;; Alien mod system variables
+    (define *alien-mod-enabled* #t)
+    (define *alien-spawned* #f)
+    (define *alien-spawn-time* 0)
+    (define *alien-spawn-cooldown* 600) ;; 10 seconds at 60fps
+    (define *alien-follow-distance* 5.0)
+    (define *alien-move-speed* 0.1)
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; ECO FUSION MOD - Helper Functions
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;; Reset all eco charges
+    (defun reset-eco-charges ()
+      (set! *yellow-eco-charge* 0)
+      (set! *red-eco-charge* 0)
+      (set! *blue-eco-charge* 0)
+      (set! *green-eco-charge* 0)
+      (none)
+      )
+
+    ;; Display fusion message
+    (defun display-fusion-message ((message string))
+      (format 0 "~A~%" message)
+      (set! *fusion-message-display-time* 180) ;; 3 seconds at 60fps
+      (none)
+      )
+
+    ;; End all active fusion effects
+    (defun end-all-fusion-effects ()
+      (set! *super-jump-active* #f)
+      (set! *fire-trail-active* #f)
+      (set! *time-slow-active* #f)
+      (set! *mega-heal-active* #f)
+      (set! *triple-fusion-active* #f)
+      (format 0 "ECO FUSION: All effects ended!~%")
+      (none)
+      )
+
+    ;; Check if fusion is on cooldown
+    (defun fusion-on-cooldown? ()
+      (> *fusion-cooldown* 0)
+      )
+
+    ;; Update cooldown timers
+    (defun update-fusion-timers ()
+      ;; Update fusion cooldown
+      (when (> *fusion-cooldown* 0)
+        (set! *fusion-cooldown* (- *fusion-cooldown* 1))
+        )
+      
+      ;; Update effect duration
+      (when (> *fusion-effect-duration* 0)
+        (set! *fusion-effect-duration* (- *fusion-effect-duration* 1))
+        ;; End effects when duration expires
+        (when (= *fusion-effect-duration* 0)
+          (end-all-fusion-effects)
+          )
+        )
+      
+      ;; Update message display time
+      (when (> *fusion-message-display-time* 0)
+        (set! *fusion-message-display-time* (- *fusion-message-display-time* 1))
+        )
+      (none)
+      )
+
+    ;; Activate super jump fusion (Yellow + Red)
+    (defun activate-super-jump-fusion ()
+      (set! *super-jump-active* #t)
+      (set! *fusion-effect-duration* 600) ;; 10 seconds
+      (display-fusion-message "ECO FUSION: Super Jump Activated!")
+      (reset-eco-charges)
+      (set! *fusion-cooldown* 300) ;; 5 second cooldown
+      (none)
+      )
+
+    ;; Activate fire trail fusion (Red + Blue)
+    (defun activate-fire-trail-fusion ()
+      (set! *fire-trail-active* #t)
+      (set! *fusion-effect-duration* 900) ;; 15 seconds
+      (display-fusion-message "ECO FUSION: Fire Trail Activated!")
+      (reset-eco-charges)
+      (set! *fusion-cooldown* 300) ;; 5 second cooldown
+      (none)
+      )
+
+    ;; Activate time slow fusion (Blue + Yellow)
+    (defun activate-time-slow-fusion ()
+      (set! *time-slow-active* #t)
+      (set! *fusion-effect-duration* 450) ;; 7.5 seconds
+      (display-fusion-message "ECO FUSION: Time Slow Activated!")
+      (reset-eco-charges)
+      (set! *fusion-cooldown* 300) ;; 5 second cooldown
+      (none)
+      )
+
+    ;; Activate mega heal fusion (Green + Blue)
+    (defun activate-mega-heal-fusion ()
+      (set! *mega-heal-active* #t)
+      (set! *fusion-effect-duration* 300) ;; 5 seconds
+      (display-fusion-message "ECO FUSION: Mega Heal Activated!")
+      ;; Restore health and eco
+      (when *target*
+        (pickup-collectable! (-> *target* fact) (pickup-type health) 100.0 (the-as handle #f))
+        (set! (-> *game-info* fuel) 100.0)
+        )
+      (reset-eco-charges)
+      (set! *fusion-cooldown* 600) ;; 10 second cooldown
+      (none)
+      )
+
+    ;; Activate triple fusion (Yellow + Red + Blue)
+    (defun activate-triple-fusion ()
+      (set! *triple-fusion-active* #t)
+      (set! *fusion-effect-duration* 1200) ;; 20 seconds
+      (display-fusion-message "ECO FUSION: TRIPLE POWER ACTIVATED!")
+      (reset-eco-charges)
+      (set! *fusion-cooldown* 900) ;; 15 second cooldown
+      (none)
+      )
+
+    ;; Check for eco combinations
+    (defun check-eco-combinations ()
+      ;; Triple fusion (Yellow + Red + Blue)
+      (when (and (>= *yellow-eco-charge* 3) 
+                 (>= *red-eco-charge* 3) 
+                 (>= *blue-eco-charge* 3)
+                 (not (fusion-on-cooldown?)))
+        (activate-triple-fusion)
+        )
+      
+      ;; Super Jump (Yellow + Red)
+      (when (and (>= *yellow-eco-charge* 2) 
+                 (>= *red-eco-charge* 2)
+                 (not (fusion-on-cooldown?)))
+        (activate-super-jump-fusion)
+        )
+      
+      ;; Fire Trail (Red + Blue)
+      (when (and (>= *red-eco-charge* 2) 
+                 (>= *blue-eco-charge* 2)
+                 (not (fusion-on-cooldown?)))
+        (activate-fire-trail-fusion)
+        )
+      
+      ;; Time Slow (Blue + Yellow)
+      (when (and (>= *blue-eco-charge* 2) 
+                 (>= *yellow-eco-charge* 2)
+                 (not (fusion-on-cooldown?)))
+        (activate-time-slow-fusion)
+        )
+      
+      ;; Mega Heal (Green + Blue)
+      (when (and (>= *green-eco-charge* 2) 
+                 (>= *blue-eco-charge* 2)
+                 (not (fusion-on-cooldown?)))
+        (activate-mega-heal-fusion)
+        )
+      (none)
+      )
+
+    ;; Apply fusion effects
+    (defun apply-fusion-effects ()
+      (when *target*
+        ;; Super jump effect (visual indicator)
+        (when *super-jump-active*
+          (draw-yellow *target*)
+          )
+        
+        ;; Fire trail effect (visual indicator)
+        (when *fire-trail-active*
+          (draw-red *target*)
+          )
+        
+        ;; Time slow effect (visual indicator)
+        (when *time-slow-active*
+          (draw-blue *target*)
+          )
+        
+        ;; Mega heal effect (visual indicator)
+        (when *mega-heal-active*
+          (draw-green *target*)
+          )
+        
+        ;; Triple fusion effect (visual indicator)
+        (when *triple-fusion-active*
+          (draw-yellow *target*)
+          )
+        )
+      (none)
+      )
+
+    ;; Display eco fusion status
+    (defun display-eco-fusion-status ()
+      (when (> *fusion-message-display-time* 0)
+        (format 0 "Eco Charges - Y:~A R:~A B:~A G:~A | Cooldown:~A~%" 
+                *yellow-eco-charge* *red-eco-charge* *blue-eco-charge* *green-eco-charge* *fusion-cooldown*)
+        )
+      (none)
+      )
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; ALIEN MOD - Helper Functions
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;; Spawn alien near Jak
+    (defun spawn-alien ()
+      (when (and *alien-mod-enabled* 
+                 (not *alien-spawned*)
+                 (>= *alien-spawn-time* *alien-spawn-cooldown*))
+        
+        ;; Create a simple alien entity using existing game objects
+        (let ((alien-entity (spawn-actor 'collectable *level*)))
+          (when alien-entity
+            ;; Position alien near Jak
+            (when *target*
+              (let ((jak-pos (-> *target* trans)))
+                (set-vector! (-> alien-entity trans) 
+                             (+ (-> jak-pos x) *alien-follow-distance*)
+                             (-> jak-pos y)
+                             (+ (-> jak-pos z) *alien-follow-distance*)
+                             1.0)
+                )
+              )
+            
+            ;; Set alien properties
+            (set! (-> alien-entity type) 'alien)
+            (set! (-> alien-entity scale) 1.5) ;; Make alien slightly larger
+            
+            ;; Mark as spawned
+            (set! *alien-spawned* #t)
+            (set! *alien-spawn-time* 0)
+            
+            (format 0 "ALIEN MOD: Alien spawned!~%")
+            )
+          )
+        )
+      (none)
+      )
+
+    ;; Update alien behavior
+    (defun update-alien ()
+      (when (and *alien-spawned* *target*)
+        ;; Find the alien entity
+        (let ((alien-entity (find-actor 'alien)))
+          (when alien-entity
+            ;; Make alien follow Jak at a distance
+            (let ((jak-pos (-> *target* trans))
+                  (alien-pos (-> alien-entity trans)))
+              
+              ;; Calculate direction to Jak
+              (let ((direction-x (- (-> jak-pos x) (-> alien-pos x)))
+                    (direction-z (- (-> jak-pos z) (-> alien-pos z))))
+                
+                ;; Move alien toward Jak
+                (set! (-> alien-pos x) (+ (-> alien-pos x) (* direction-x *alien-move-speed*)))
+                (set! (-> alien-pos z) (+ (-> alien-pos z) (* direction-z *alien-move-speed*)))
+                
+                ;; Keep alien at follow distance
+                (let ((distance (sqrt (+ (* direction-x direction-x) (* direction-z direction-z)))))
+                  (when (> distance (* *alien-follow-distance* 2))
+                    (set! (-> alien-pos x) (+ (-> jak-pos x) *alien-follow-distance*))
+                    (set! (-> alien-pos z) (+ (-> jak-pos z) *alien-follow-distance*))
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      (none)
+      )
+
+    ;; Remove alien
+    (defun remove-alien ()
+      (when *alien-spawned*
+        ;; Find and remove alien entity
+        (let ((alien-entity (find-actor 'alien)))
+          (when alien-entity
+            (delete-actor alien-entity)
+            )
+          )
+        
+        (set! *alien-spawned* #f)
+        (format 0 "ALIEN MOD: Alien removed!~%")
+        )
+      (none)
+      )
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; MAIN MOD FUNCTIONS - Integration
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;; Main function that runs every frame
     (defun runs-every-frame ()
-      ;; (increase-power-cell-by-one) This is a call to increase-power-cell-by-one defined in mod-common-functions.gc
+      ;; Update alien spawn timer
+      (when *alien-mod-enabled*
+        (set! *alien-spawn-time* (+ *alien-spawn-time* 1))
+        )
+      
+      ;; Spawn alien if conditions are met
+      (spawn-alien)
+      
+      ;; Update alien behavior
+      (update-alien)
+      
+      ;; Original eco fusion code
+      (update-fusion-timers)
+      (apply-fusion-effects)
+      
+      ;; Display status in debug mode
+      (when *debug-segment*
+        (display-eco-fusion-status)
+        (orb-placer-maintenance)
+        )
 
-      ;; Sample code to turn jak pink whenever he's doing the jetboard hover glitch
-      ;; (when *target* 
-      ;;   (if (board-hovering?)
-      ;;     (draw-pink *target*)
-      ;;     (draw-normal *target*)
-      ;;     )
-      ;;   )
-
+      ;; Original input display code
       (if *show-input-display* 
         (input-display-on)
         (input-display-off)
         )
-
-      (when *debug-segment*
-        (orb-placer-maintenance)
-        )
       
       (none)
       )
 
-    (defun runs-on-gem-pickup ()
-      ;; Code here runs on any scout fly pickup
-
-      (none)
-      )
-
-    (defun runs-on-task-close ()
-    
-
-      (none)
-      )
-
-    (defun runs-on-eco-pickup ((eco-type pickup-type) (parent process-tree))
-      (let* ((from-vent? #f))
-        ;; Code here runs as soon as you pickup ANY eco
-
-        (case eco-type
-          (((pickup-type eco-yellow))      
-            ;; Code here runs as soon as you pickup yellow eco
-
-            )
-          (((pickup-type eco-red))      
-            ;; Code here runs as soon as you pickup red eco
-
-            )
-          (((pickup-type eco-blue))      
-            ;; Code here runs as soon as you pickup blue eco
-
-            )
-
-          (((pickup-type eco-green))      
-            ;; Code here runs as soon as you pickup big green eco 
-
-            )
-          )
-        
-        (when from-vent?
-          ;; Code here runs only if the eco was picked up from a vent
-
-          )
+    ;; Function that runs when Jak spawns
+    (defun runs-on-jak-spawn ()
+      ;; Remove existing alien
+      (remove-alien)
+      
+      ;; Reset alien spawn timer
+      (set! *alien-spawn-time* 0)
+      
+      ;; Original eco fusion reset code
+      (when *eco-fusion-enabled*
+        (reset-eco-charges)
+        (end-all-fusion-effects)
+        (set! *fusion-cooldown* 0)
+        (set! *fusion-effect-duration* 0)
+        (format 0 "Eco Fusion System Ready!~%")
         )
 
       (none)
       )
 
-    (defun runs-on-jak-spawn ()
-      ;; Code here runs every time jak spawns (loading a file new game or death)   
-
-      (none)
-      )
-
+    ;; Function that runs when Jak dies
     (defun runs-on-jak-death ((death-event symbol))
       (case death-event
         (('dying)
-          ;; Code here runs immediately every time jak dies, before any death animation or death cutscene
+          ;; Remove alien
+          (remove-alien)
           
+          ;; Original eco fusion reset code
+          (when *eco-fusion-enabled*
+            (reset-eco-charges)
+            (end-all-fusion-effects)
+            )
           )
         (('blackout)
           ;; Code here runs after jak dies (and any death cutscene finishes), during the blackout before he spawns
-
           )
         )
       
+      (none)
+      )
+
+    ;; Function that runs when eco is picked up
+    (defun runs-on-eco-pickup ((eco-type pickup-type) (parent process-tree))
+      ;; Original eco pickup code
+      (case eco-type
+        (((pickup-type eco-yellow)
+          (when *eco-fusion-enabled*
+            (set! *yellow-eco-charge* (min (+ *yellow-eco-charge* 1) 3))
+            (format 0 "Yellow Eco collected! Charge: ~A~%" *yellow-eco-charge*)
+            (check-eco-combinations)
+            )
+          )
+         ((pickup-type eco-red)
+          (when *eco-fusion-enabled*
+            (set! *red-eco-charge* (min (+ *red-eco-charge* 1) 3))
+            (format 0 "Red Eco collected! Charge: ~A~%" *red-eco-charge*)
+            (check-eco-combinations)
+            )
+          )
+         ((pickup-type eco-blue)
+          (when *eco-fusion-enabled*
+            (set! *blue-eco-charge* (min (+ *blue-eco-charge* 1) 3))
+            (format 0 "Blue Eco collected! Charge: ~A~%" *blue-eco-charge*)
+            (check-eco-combinations)
+            )
+          )
+         ((pickup-type eco-green)
+          (when *eco-fusion-enabled*
+            (set! *green-eco-charge* (min (+ *green-eco-charge* 1) 3))
+            (format 0 "Green Eco collected! Charge: ~A~%" *green-eco-charge*)
+            (check-eco-combinations)
+            )
+          )
+         )
+        )
+      (none)
+      )
+
+    ;; Function that runs when orbs are picked up
+    (defun runs-on-orb-pickup ()
+      ;; Original orb pickup code
+      (set! (-> *game-info* fuel) (+ (-> *game-info* fuel) 1))
+      (none)
+      )
+
+    ;; Function that runs when power cells are picked up
+    (defun runs-on-power-cell-pickup ()
+      ;; Original power cell pickup code
+      (set! (-> *game-info* power-cells) (+ (-> *game-info* power-cells) 1))
+      (none)
+      )
+
+    ;; Function that runs when gems are picked up
+    (defun runs-on-gem-pickup ()
+      ;; Original gem pickup code
+      (set! (-> *game-info* gems) (+ (-> *game-info* gems) 1))
+      (none)
+      )
+
+    ;; Function that runs when skull gems are picked up
+    (defun runs-on-skull-gem-pickup ()
+      ;; Original skull gem pickup code
+      (set! (-> *game-info* skull-gems) (+ (-> *game-info* skull-gems) 1))
+      (none)
+      )
+
+    ;; Function that runs when Jak enters a new level
+    (defun runs-on-level-load ()
+      ;; Reset alien mod
+      (remove-alien)
+      (set! *alien-spawn-time* 0)
+      
+      ;; Original eco fusion reset code
+      (when *eco-fusion-enabled*
+        (reset-eco-charges)
+        (end-all-fusion-effects)
+        (set! *fusion-cooldown* 0)
+        (set! *fusion-effect-duration* 0)
+        (format 0 "Level loaded - Mods reset!~%")
+        )
+      (none)
+      )
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;; DEBUG FUNCTIONS
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ;; Debug function to manually spawn alien
+    (defun debug-spawn-alien ()
+      (when *alien-mod-enabled*
+        (set! *alien-spawn-time* *alien-spawn-cooldown*)
+        (spawn-alien)
+        )
+      (none)
+      )
+
+    ;; Debug function to remove alien
+    (defun debug-remove-alien ()
+      (remove-alien)
+      (none)
+      )
+
+    ;; Debug function to toggle alien mod
+    (defun debug-toggle-alien-mod ()
+      (set! *alien-mod-enabled* (not *alien-mod-enabled*))
+      (format 0 "ALIEN MOD: ~A~%" (if *alien-mod-enabled* "Enabled" "Disabled"))
+      (none)
+      )
+
+    ;; Debug function to toggle eco fusion mod
+    (defun debug-toggle-eco-fusion ()
+      (set! *eco-fusion-enabled* (not *eco-fusion-enabled*))
+      (format 0 "ECO FUSION: ~A~%" (if *eco-fusion-enabled* "Enabled" "Disabled"))
       (none)
       )
 

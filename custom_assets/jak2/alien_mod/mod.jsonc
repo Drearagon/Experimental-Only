@@ -1,0 +1,15 @@
+{
+    "name": "Alien Mod",
+    "id": "alien_mod",
+    "version": "1.0.0",
+    "authors": ["Geaviik"],
+    "description": "A test alien enemy added to Jak II.",
+    "game": "jak2",
+    "assets": [
+      "alien_mod/art/alien/config.jsonc"
+    ],
+    "code": [
+      "alien_mod/code/alien.gc"
+    ]
+  }
+  

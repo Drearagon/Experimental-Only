@@ -1,0 +1,18 @@
+{
+    "asset": {
+      "name": "alien",
+      "type": "art",
+      "id": "alien"
+    },
+    "file": "./alien.glb",
+    "skeleton": "alien-skel",
+    "animations": {
+      "idle": "alien-idle"
+      // Add more later: walk, attack, etc.
+    },
+    "options": {
+      "export-collision": false,
+      "force-visibility": true
+    }
+  }
+  

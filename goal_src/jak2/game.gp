@@ -308,6 +308,13 @@
 ;; to also generate a collide-mesh, add :gen-mesh #t
 (build-actor "test-actor" :force-run #t :gen-mesh #t)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Custom Alien Mod
+;;;;;;;;;;;;;;;;;;;;;;;;;
+("alien-mod" "custom_assets/jak2/alien_mod/code/alien.gc")
+(goal-src "custom_assets/jak2/alien_mod/code/alien.gc" "process-focusable")
+(build-actor "custom_assets/jak2/models/custom_levels/alien.glb" :force-run #t :gen-mesh #t)
+
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ANIMATIONS
 ;;;;;;;;;;;;;;;;;;;;;
